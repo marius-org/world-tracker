@@ -62,8 +62,9 @@ async function loadFlights() {
     setStatus('Loading live flights...');
 
     try {
-        const res  = await fetch('https://opensky-network.org/api/states/all');
-        const data = await res.json();
+        const target = encodeURIComponent('https://opensky-network.org/api/states/all');
+        const res    = await fetch(`https://corsproxy.io/?${target}`);
+        const data   = await res.json();
 
         if (!data.states) {
             setStatus('No flight data available right now.');

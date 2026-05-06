@@ -63,7 +63,7 @@ async function loadFlights() {
 
     try {
         const target = encodeURIComponent('https://opensky-network.org/api/states/all');
-        const res    = await fetch(`https://corsproxy.io/?${target}`);
+        const res    = await fetch(`https://api.allorigins.win/raw?url=${target}`);
         const data   = await res.json();
 
         if (!data.states) {

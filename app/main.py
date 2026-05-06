@@ -36,9 +36,33 @@ async def info():
 
 @app.get("/api/flights")
 async def get_flights():
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        response = await client.get("https://opensky-network.org/api/states/all")
-        return response.json()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                "https://api.adsb.one/v2/all",
+                headers={"Accept": "application/json"}
+            )
+            data = response.json()
+            states = []
+            for ac in data.get("ac", []):
+                lat = ac.get("lat")
+                lon = ac.get("lon")
+                if not lat or not lon:
+                    continue
+                states.append([
+                    ac.get("hex", ""),
+                    ac.get("flight", ""),
+                    ac.get("r", ""),
+                    None, None, None,
+                    lat, lon,
+                    None, None,
+                    ac.get("alt_baro", 0),
+                    None, None, None,
+                    ac.get("gs", 0)
+                ])
+            return {"states": states}
+    except Exception as e:
+        return {"states": [], "error": str(e)}
 
 @app.get("/api/earthquakes")
 async def get_earthquakes():

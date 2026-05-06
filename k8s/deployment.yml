@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: world-tracker
+  namespace: world-tracker
+  labels:
+    app: world-tracker
+    project: world-tracker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: world-tracker
+  template:
+    metadata:
+      labels:
+        app: world-tracker
+        project: world-tracker
+    spec:
+      containers:
+        - name: world-tracker
+          image: mariuseu/world-tracker:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: world-tracker-config
+                  key: ENVIRONMENT
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+      restartPolicy: Always

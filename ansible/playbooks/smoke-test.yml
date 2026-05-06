@@ -1,0 +1,54 @@
+---
+- name: Smoke Test - World Live Tracker
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    app_url: "{{ app_url }}"
+    health_endpoint: "{{ app_url }}/health"
+    info_endpoint: "{{ app_url }}/info"
+
+  tasks:
+
+    - name: Wait for app to be reachable
+      ansible.builtin.uri:
+        url: "{{ health_endpoint }}"
+        method: GET
+        status_code: 200
+      register: health_result
+      retries: 10
+      delay: 15
+      until: health_result.status == 200
+
+    - name: Verify health response is healthy
+      ansible.builtin.assert:
+        that:
+          - health_result.json.status == "healthy"
+        fail_msg: "Health check failed - app is not healthy"
+        success_msg: "Health check passed - app is healthy"
+
+    - name: Check /info endpoint
+      ansible.builtin.uri:
+        url: "{{ info_endpoint }}"
+        method: GET
+        status_code: 200
+      register: info_result
+
+    - name: Verify info response contains required fields
+      ansible.builtin.assert:
+        that:
+          - info_result.json.app == "World Live Tracker"
+          - info_result.json.hostname is defined
+          - info_result.json.version is defined
+        fail_msg: "Info endpoint missing required fields"
+        success_msg: "Info endpoint verified successfully"
+
+    - name: Print deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ Smoke test passed!"
+          - "🌍 App URL: {{ app_url }}"
+          - "🖥️  Pod hostname: {{ info_result.json.hostname }}"
+          - "🏷️  Version: {{ info_result.json.version }}"
+          - "🌐 Environment: {{ info_result.json.environment }}"

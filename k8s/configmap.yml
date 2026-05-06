@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: world-tracker-config
+  namespace: world-tracker
+  labels:
+    app: world-tracker
+    project: world-tracker
+data:
+  ENVIRONMENT: "production"

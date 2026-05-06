@@ -108,11 +108,15 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f k8s/
+          kubectl apply -f k8s/namespace.yml
+          kubectl wait --for=jsonpath='{.status.phase}'=Active \
+            namespace/world-tracker --timeout=30s
+          kubectl apply -f k8s/configmap.yml
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
           kubectl rollout status deployment/world-tracker \
             -n world-tracker \
             --timeout=120s
-
       - name: Get app URL
         run: |
           echo "Waiting for LoadBalancer to be assigned..."

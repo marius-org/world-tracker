@@ -1,0 +1,176 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1a1a2e;
+    color: #eaeaea;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────── */
+
+#sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: #16213e;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 20px;
+    z-index: 1000;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+}
+
+#logo h1 {
+    font-size: 1.1rem;
+    color: #e94560;
+    line-height: 1.4;
+}
+
+#logo #version {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+
+#buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn {
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    letter-spacing: 0.3px;
+}
+
+.btn:hover {
+    transform: translateX(4px);
+    filter: brightness(1.15);
+}
+
+.btn:active {
+    transform: translateX(2px);
+}
+
+.btn-flights  { background: #0f3460; color: #58b4ff; }
+.btn-quakes   { background: #3d0000; color: #ff6b6b; }
+.btn-weather  { background: #0d3b2e; color: #56e0a0; }
+.btn-clear    { background: #2a2a2a; color: #aaaaaa; }
+
+.btn.active {
+    filter: brightness(1.3);
+    transform: translateX(4px);
+}
+
+/* ── Status ──────────────────────────────────────────── */
+
+#status-box {
+    background: #0f0f1a;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #e94560;
+}
+
+#status {
+    font-size: 0.8rem;
+    color: #aaa;
+    line-height: 1.5;
+}
+
+/* ── Pod Info ────────────────────────────────────────── */
+
+#info-box {
+    background: #0f0f1a;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #56e0a0;
+    margin-top: auto;
+}
+
+#pod-info {
+    font-size: 0.75rem;
+    color: #56e0a0;
+    line-height: 1.6;
+    word-break: break-all;
+}
+
+/* ── Legend ──────────────────────────────────────────── */
+
+#legend {
+    background: #0f0f1a;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #ff6b6b;
+}
+
+#legend-content {
+    font-size: 0.78rem;
+    color: #aaa;
+    line-height: 1.8;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* ── Map ─────────────────────────────────────────────── */
+
+#map {
+    flex: 1;
+    height: 100vh;
+}
+
+/* ── Leaflet Popup ───────────────────────────────────── */
+
+.leaflet-popup-content-wrapper {
+    background: #16213e;
+    color: #eaeaea;
+    border-radius: 8px;
+    border: 1px solid #e94560;
+}
+
+.leaflet-popup-tip {
+    background: #16213e;
+}
+
+.popup-title {
+    font-weight: 700;
+    color: #e94560;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+}
+
+.popup-row {
+    font-size: 0.82rem;
+    color: #ccc;
+    margin: 3px 0;
+}
+
+.popup-row span {
+    color: #58b4ff;
+    font-weight: 600;
+}

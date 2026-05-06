@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Live Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<div id="app">
+
+    <div id="sidebar">
+        <div id="logo">
+            <h1>🌍 World Live Tracker</h1>
+            <span id="version">v1.0.0</span>
+        </div>
+
+        <div id="buttons">
+            <button class="btn btn-flights" onclick="loadFlights()">
+                ✈️ Live Flights
+            </button>
+            <button class="btn btn-quakes" onclick="loadEarthquakes()">
+                🌋 Earthquakes
+            </button>
+            <button class="btn btn-weather" onclick="enableWeather()">
+                🌤️ Weather
+            </button>
+            <button class="btn btn-clear" onclick="clearMap()">
+                ❌ Clear Map
+            </button>
+        </div>
+
+        <div id="status-box">
+            <p id="status">Ready.</p>
+        </div>
+
+        <div id="info-box">
+            <p id="pod-info">Loading pod info...</p>
+        </div>
+
+        <div id="legend" style="display:none">
+            <div id="legend-content"></div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js"></script>
+
+</body>
+</html>

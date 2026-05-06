@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: world-tracker
-          image: mariuseu/world-tracker:latest
+          image: mariuseu/world-tracker:$IMAGE_TAG
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

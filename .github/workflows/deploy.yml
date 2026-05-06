@@ -108,6 +108,8 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
+          IMAGE_TAG=$(echo ${{ github.sha }} | cut -c1-7)
+          sed -i "s|\$IMAGE_TAG|$IMAGE_TAG|g" k8s/deployment.yml
           kubectl apply -f k8s/namespace.yml
           kubectl wait --for=jsonpath='{.status.phase}'=Active \
             namespace/world-tracker --timeout=30s

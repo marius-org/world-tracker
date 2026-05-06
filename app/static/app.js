@@ -62,7 +62,7 @@ async function loadFlights() {
     setStatus('Loading live flights...');
 
     try {
-        const res  = await fetch('/api/flights');
+        const res  = await fetch('https://opensky-network.org/api/states/all');
         const data = await res.json();
 
         if (!data.states) {
@@ -128,20 +128,20 @@ async function loadEarthquakes() {
         const circles = [];
 
         data.features.forEach(feature => {
-            const props = feature.properties;
+            const props  = feature.properties;
             const coords = feature.geometry.coordinates;
-            const mag  = props.mag;
-            const place = props.place;
-            const time = new Date(props.time).toUTCString();
+            const mag    = props.mag;
+            const place  = props.place;
+            const time   = new Date(props.time).toUTCString();
 
             if (!coords[1] || !coords[0]) return;
 
             const circle = L.circleMarker([coords[1], coords[0]], {
-                radius: quakeRadius(mag),
-                fillColor: quakeColor(mag),
-                color: '#000',
-                weight: 1,
-                opacity: 0.8,
+                radius:      quakeRadius(mag),
+                fillColor:   quakeColor(mag),
+                color:       '#000',
+                weight:      1,
+                opacity:     0.8,
                 fillOpacity: 0.7
             });
 
@@ -157,7 +157,6 @@ async function loadEarthquakes() {
 
         currentLayer = L.layerGroup(circles).addTo(map);
 
-        // Show legend
         document.getElementById('legend').style.display = 'block';
         document.getElementById('legend-content').innerHTML = `
             <b>Magnitude Scale:</b><br>

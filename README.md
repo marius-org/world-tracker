@@ -1,4 +1,4 @@
-# 🌍 World Live Tracker — DevOps Final Project
+# 🌍 World Live Tracker 
 
 A real-time world map dashboard built with FastAPI and Leaflet.js, fully automated from local development to AWS EKS deployment using a complete DevOps toolchain.
 

@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - '*.md'
   workflow_dispatch:
 
 env:
@@ -120,6 +123,7 @@ jobs:
           kubectl rollout status deployment/world-tracker \
             -n world-tracker \
             --timeout=120s
+
       - name: Get app URL
         run: |
           echo "Waiting for LoadBalancer to be assigned..."

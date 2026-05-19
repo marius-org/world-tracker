@@ -359,3 +359,25 @@ body {
 }
 
 .loading { animation: pulse 1s ease-in-out infinite; }
+
+/* ── Cluster icon ─────────────────────────────────────── */
+
+.cluster-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(0,245,196,0.15);
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--accent);
+    box-shadow: 0 0 10px rgba(0,245,196,0.3);
+}
+
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+    transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+}

@@ -64,7 +64,7 @@ function setActiveButton(id) {
     document.getElementById(id).classList.add('active');
 }
 
-// ── Plane icon (only used when zoomed in) ──────────────────────────────────
+// ── Plane icon (zoom >= 7 only) ────────────────────────────────────────────
 
 function makePlaneIcon(heading) {
     const deg = heading || 0;
@@ -80,7 +80,20 @@ function makePlaneIcon(heading) {
     });
 }
 
-// ── Render flights based on zoom ───────────────────────────────────────────
+// ── Build popup ────────────────────────────────────────────────────────────
+
+function flightPopup(icao, callsign, country, alt, speed, heading) {
+    return `
+        <div class="popup-title">✈ ${callsign ? callsign.trim() : 'UNKNOWN'}</div>
+        <div class="popup-row"><span>ICAO</span><span>${icao || 'N/A'}</span></div>
+        <div class="popup-row"><span>COUNTRY</span><span>${country || 'N/A'}</span></div>
+        <div class="popup-row"><span>ALTITUDE</span><span>${alt ? Math.round(alt) + ' m' : 'N/A'}</span></div>
+        <div class="popup-row"><span>SPEED</span><span>${speed ? Math.round(speed) + ' m/s' : 'N/A'}</span></div>
+        <div class="popup-row"><span>HEADING</span><span>${heading ? Math.round(heading) + '°' : 'N/A'}</span></div>
+    `;
+}
+
+// ── Render flights ─────────────────────────────────────────────────────────
 
 function renderFlights(data) {
     if (currentLayer) {
@@ -89,42 +102,50 @@ function renderFlights(data) {
     }
 
     const zoom = map.getZoom();
+    const useIcon = zoom >= 7;
+
+    const cluster = L.markerClusterGroup({
+        maxClusterRadius: 40,
+        disableClusteringAtZoom: 7,
+        spiderfyOnMaxZoom: false,
+        chunkedLoading: true,
+        iconCreateFunction: (c) => {
+            const count = c.getChildCount();
+            return L.divIcon({
+                html: `<div class="cluster-icon">${count}</div>`,
+                className: '',
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
+            });
+        }
+    });
+
     const markers = [];
 
     data.forEach(state => {
         const [icao, callsign, country,,,, lat, lon,,, alt,,,, speed, heading] = state;
         if (!lat || !lon) return;
 
-        const popup = `
-            <div class="popup-title">✈ ${callsign ? callsign.trim() : 'UNKNOWN'}</div>
-            <div class="popup-row"><span>ICAO</span><span>${icao || 'N/A'}</span></div>
-            <div class="popup-row"><span>COUNTRY</span><span>${country || 'N/A'}</span></div>
-            <div class="popup-row"><span>ALTITUDE</span><span>${alt ? Math.round(alt) + ' m' : 'N/A'}</span></div>
-            <div class="popup-row"><span>SPEED</span><span>${speed ? Math.round(speed) + ' m/s' : 'N/A'}</span></div>
-            <div class="popup-row"><span>HEADING</span><span>${heading ? Math.round(heading) + '°' : 'N/A'}</span></div>
-        `;
-
         let marker;
-
-        if (zoom >= 6) {
-            // Zoomed in: SVG plane icon with rotation
+        if (useIcon) {
             marker = L.marker([lat, lon], { icon: makePlaneIcon(heading) });
         } else {
-            // Zoomed out: fast canvas circle
             marker = L.circleMarker([lat, lon], {
-                radius: zoom >= 4 ? 4 : 3,
+                radius: 3,
                 fillColor: '#00f5c4',
                 color: '#00f5c4',
                 weight: 0,
-                fillOpacity: 0.85
+                fillOpacity: 0.9
             });
         }
 
-        marker.bindPopup(popup);
+        marker.bindPopup(flightPopup(icao, callsign, country, alt, speed, heading));
         markers.push(marker);
     });
 
-    currentLayer = L.layerGroup(markers).addTo(map);
+    cluster.addLayers(markers);
+    currentLayer = cluster;
+    map.addLayer(currentLayer);
 }
 
 // ── Pod Info ───────────────────────────────────────────────────────────────
@@ -164,7 +185,6 @@ async function loadFlights() {
         flightData = data.states;
         renderFlights(flightData);
 
-        // Re-render on zoom change to switch between circle/plane icon
         map.on('zoomend', () => {
             if (flightData.length > 0) renderFlights(flightData);
         });

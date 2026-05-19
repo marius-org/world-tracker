@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: world-tracker
-          image: mariuseu/world-tracker:k3s-5
+          image: mariuseu/world-tracker:k3s-9
           ports:
             - containerPort: 8000
           env:

@@ -1,15 +1,43 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+:root {
+    --bg:        #080d12;
+    --panel:     #0c1520;
+    --border:    #1a2e3d;
+    --accent:    #00f5c4;
+    --accent2:   #0099ff;
+    --danger:    #ff3b3b;
+    --warn:      #ffaa00;
+    --text:      #c8d8e8;
+    --muted:     #4a6070;
+    --mono:      'Share Tech Mono', monospace;
+    --head:      'Rajdhani', sans-serif;
 }
 
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #1a1a2e;
-    color: #eaeaea;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
     height: 100vh;
     overflow: hidden;
+    cursor: crosshair;
+}
+
+/* scanline overlay */
+#scanline {
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,245,196,0.015) 2px,
+        rgba(0,245,196,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
 }
 
 #app {
@@ -17,160 +45,317 @@ body {
     height: 100vh;
 }
 
-/* ── Sidebar ─────────────────────────────────────────── */
+/* ── Sidebar ──────────────────────────────────────────── */
 
 #sidebar {
-    width: 260px;
-    min-width: 260px;
-    background: #16213e;
+    width: 270px;
+    min-width: 270px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    gap: 20px;
+    gap: 0;
     z-index: 1000;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    overflow: hidden;
 }
 
-#logo h1 {
-    font-size: 1.1rem;
-    color: #e94560;
-    line-height: 1.4;
+/* ── Logo ─────────────────────────────────────────────── */
+
+#logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #0c1a2a 0%, #0c1520 100%);
 }
 
-#logo #version {
-    font-size: 0.75rem;
-    color: #888;
+#logo-icon svg {
+    width: 40px;
+    height: 40px;
+    animation: radar-rotate 4s linear infinite;
 }
 
-/* ── Buttons ─────────────────────────────────────────── */
+@keyframes radar-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
 
-#buttons {
+#logo-title {
+    font-family: var(--head);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+}
+
+#logo-sub {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    margin-top: 2px;
+}
+
+/* ── Nav ──────────────────────────────────────────────── */
+
+#nav {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
-
-.btn {
-    padding: 12px 16px;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    letter-spacing: 0.3px;
-}
-
-.btn:hover {
-    transform: translateX(4px);
-    filter: brightness(1.15);
-}
-
-.btn:active {
-    transform: translateX(2px);
-}
-
-.btn-flights  { background: #0f3460; color: #58b4ff; }
-.btn-quakes   { background: #3d0000; color: #ff6b6b; }
-.btn-weather  { background: #0d3b2e; color: #56e0a0; }
-.btn-clear    { background: #2a2a2a; color: #aaaaaa; }
-
-.btn.active {
-    filter: brightness(1.3);
-    transform: translateX(4px);
-}
-
-/* ── Status ──────────────────────────────────────────── */
-
-#status-box {
-    background: #0f0f1a;
-    border-radius: 8px;
     padding: 12px;
-    border-left: 3px solid #e94560;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-btn::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    transform: scaleY(0);
+    transition: transform 0.15s ease;
+}
+
+.nav-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,245,196,0.04);
+}
+
+.nav-btn:hover::before,
+.nav-btn.active::before {
+    transform: scaleY(1);
+}
+
+.nav-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,245,196,0.07);
+}
+
+#btn-quakes.active   { border-color: var(--danger); color: var(--danger); background: rgba(255,59,59,0.07); }
+#btn-quakes.active::before { background: var(--danger); transform: scaleY(1); }
+#btn-quakes:hover    { border-color: var(--danger); color: var(--danger); background: rgba(255,59,59,0.04); }
+
+#btn-weather.active  { border-color: var(--accent2); color: var(--accent2); background: rgba(0,153,255,0.07); }
+#btn-weather.active::before { background: var(--accent2); transform: scaleY(1); }
+#btn-weather:hover   { border-color: var(--accent2); color: var(--accent2); background: rgba(0,153,255,0.04); }
+
+.nav-btn-clear:hover { border-color: var(--muted); color: var(--text); }
+
+.nav-icon svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.nav-label { flex: 1; }
+
+.nav-badge {
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 6px;
+    border-radius: 2px;
+    min-width: 30px;
+    text-align: center;
+}
+
+/* ── Panels ───────────────────────────────────────────── */
+
+.panel-label {
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+#status-panel {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
 }
 
 #status {
-    font-size: 0.8rem;
-    color: #aaa;
-    line-height: 1.5;
-}
-
-/* ── Pod Info ────────────────────────────────────────── */
-
-#info-box {
-    background: #0f0f1a;
-    border-radius: 8px;
-    padding: 12px;
-    border-left: 3px solid #56e0a0;
-    margin-top: auto;
-}
-
-#pod-info {
     font-size: 0.75rem;
-    color: #56e0a0;
+    color: var(--accent);
     line-height: 1.6;
-    word-break: break-all;
+    min-height: 1.2em;
 }
 
-/* ── Legend ──────────────────────────────────────────── */
+#status::before {
+    content: '> ';
+    color: var(--muted);
+}
 
 #legend {
-    background: #0f0f1a;
-    border-radius: 8px;
-    padding: 12px;
-    border-left: 3px solid #ff6b6b;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
 }
 
 #legend-content {
-    font-size: 0.78rem;
-    color: #aaa;
-    line-height: 1.8;
+    font-size: 0.72rem;
+    color: var(--text);
+    line-height: 2;
 }
 
 .legend-dot {
     display: inline-block;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    margin-right: 6px;
+    margin-right: 8px;
     vertical-align: middle;
+    box-shadow: 0 0 6px currentColor;
 }
 
-/* ── Map ─────────────────────────────────────────────── */
+#pod-panel {
+    padding: 14px 16px;
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+}
+
+#pod-info {
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.9;
+}
+
+#pod-info b {
+    color: var(--accent);
+    font-weight: normal;
+}
+
+/* ── Map wrap ─────────────────────────────────────────── */
+
+#map-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
 
 #map {
-    flex: 1;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
 }
 
-/* ── Leaflet Popup ───────────────────────────────────── */
+/* crosshair lines */
+#crosshair-h, #crosshair-v {
+    position: absolute;
+    background: rgba(0,245,196,0.08);
+    pointer-events: none;
+    z-index: 500;
+    transition: opacity 0.2s;
+}
+#crosshair-h { height: 1px; width: 100%; top: 50%; left: 0; }
+#crosshair-v { width: 1px; height: 100%; left: 50%; top: 0; }
+
+#coords-display {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: rgba(8,13,18,0.85);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    z-index: 500;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+}
+
+/* ── Leaflet overrides ────────────────────────────────── */
 
 .leaflet-popup-content-wrapper {
-    background: #16213e;
-    color: #eaeaea;
-    border-radius: 8px;
-    border: 1px solid #e94560;
+    background: rgba(12,21,32,0.95);
+    color: var(--text);
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 20px rgba(0,245,196,0.15);
+    backdrop-filter: blur(8px);
+    font-family: var(--mono);
 }
 
 .leaflet-popup-tip {
-    background: #16213e;
+    background: var(--accent);
+}
+
+.leaflet-popup-close-button {
+    color: var(--muted) !important;
 }
 
 .popup-title {
+    font-family: var(--head);
     font-weight: 700;
-    color: #e94560;
-    margin-bottom: 6px;
-    font-size: 0.95rem;
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
 }
 
 .popup-row {
-    font-size: 0.82rem;
-    color: #ccc;
-    margin: 3px 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin: 4px 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
 }
 
 .popup-row span {
-    color: #58b4ff;
+    color: var(--accent2);
     font-weight: 600;
 }
+
+.leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--accent) !important;
+    border-color: var(--border) !important;
+}
+
+.leaflet-control-attribution {
+    background: rgba(8,13,18,0.7) !important;
+    color: var(--muted) !important;
+    font-size: 0.6rem !important;
+}
+
+/* ── Plane icon ───────────────────────────────────────── */
+
+.plane-icon {
+    filter: drop-shadow(0 0 4px #00f5c4);
+    transition: transform 0.3s ease;
+}
+
+.plane-icon:hover {
+    filter: drop-shadow(0 0 8px #00f5c4) brightness(1.3);
+}
+
+/* ── Loading pulse ────────────────────────────────────── */
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+}
+
+.loading { animation: pulse 1s ease-in-out infinite; }

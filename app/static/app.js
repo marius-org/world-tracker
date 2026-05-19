@@ -1,9 +1,10 @@
-// ── Map Setup ─────────────────────────────────────────────────────────────
+// ── Map Setup ──────────────────────────────────────────────────────────────
 
 const map = L.map('map', {
     center: [20, 0],
     zoom: 2,
-    minZoom: 2
+    minZoom: 2,
+    zoomControl: true
 });
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -11,15 +12,32 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 18
 }).addTo(map);
 
-// ── State ─────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────
 
 let currentLayer = null;
 let weatherMode  = false;
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Coords display ─────────────────────────────────────────────────────────
 
-function setStatus(msg) {
-    document.getElementById('status').textContent = msg;
+map.on('mousemove', (e) => {
+    const { lat, lng } = e.latlng;
+    document.getElementById('coords-display').textContent =
+        `${lat.toFixed(4)}° N  ${lng.toFixed(4)}° E`;
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function setStatus(msg, type = 'normal') {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.style.color = type === 'error' ? 'var(--danger)'
+                   : type === 'warn'  ? 'var(--warn)'
+                   : 'var(--accent)';
+}
+
+function setBadge(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
 }
 
 function clearMap() {
@@ -29,102 +47,126 @@ function clearMap() {
     }
     weatherMode = false;
     map.off('click');
-    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('legend').style.display = 'none';
-    setStatus('Map cleared.');
+    setBadge('badge-flights', '—');
+    setBadge('badge-quakes', '—');
+    setBadge('badge-weather', 'CLICK');
+    setStatus('MAP CLEARED');
 }
 
-function setActiveButton(cls) {
-    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(cls).classList.add('active');
+function setActiveButton(id) {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
 }
 
-// ── Pod Info ──────────────────────────────────────────────────────────────
+// ── Plane SVG icon (rotates with heading) ─────────────────────────────────
+
+function makePlaneIcon(heading) {
+    const deg = heading || 0;
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+             style="transform:rotate(${deg}deg); transform-origin: center;"
+             fill="#00f5c4">
+            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+        </svg>`;
+    return L.divIcon({
+        html: `<div class="plane-icon">${svg}</div>`,
+        className: '',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+    });
+}
+
+// ── Pod Info ───────────────────────────────────────────────────────────────
 
 async function loadPodInfo() {
     try {
         const res  = await fetch('/info');
         const data = await res.json();
         document.getElementById('pod-info').innerHTML =
-            `🖥️ <b>Host:</b> ${data.hostname}<br>
-             🏷️ <b>Version:</b> ${data.version}<br>
-             🌐 <b>Env:</b> ${data.environment}`;
+            `<b>HOST</b> ${data.hostname}<br>
+             <b>VER </b> ${data.version}<br>
+             <b>ENV </b> ${data.environment}`;
     } catch {
-        document.getElementById('pod-info').textContent = 'Could not load pod info.';
+        document.getElementById('pod-info').textContent = 'NODE UNREACHABLE';
     }
 }
 
-// ── Flights ───────────────────────────────────────────────────────────────
+// ── Flights ────────────────────────────────────────────────────────────────
 
 async function loadFlights() {
     clearMap();
-    setActiveButton('.btn-flights');
-    setStatus('Loading live flights...');
+    setActiveButton('btn-flights');
+    setStatus('ACQUIRING FLIGHT DATA...', 'warn');
+    document.getElementById('status').classList.add('loading');
 
     try {
-        const target = encodeURIComponent('https://opensky-network.org/api/states/all');
-        const res    = await fetch(`https://api.allorigins.win/raw?url=${target}`);
-        const data   = await res.json();
+        const res  = await fetch('/api/flights');
+        const data = await res.json();
+
+        document.getElementById('status').classList.remove('loading');
 
         if (!data.states) {
-            setStatus('No flight data available right now.');
+            setStatus('NO FLIGHT DATA AVAILABLE', 'error');
             return;
         }
-
-        const flightIcon = L.divIcon({
-            html: '✈️',
-            className: '',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-        });
 
         const markers = [];
 
         data.states.forEach(state => {
-            const [icao, callsign, country,,,, lat, lon,,, alt, ,, , speed] = state;
+            const [icao, callsign, country,,,, lat, lon,,, alt,,,, speed, heading] = state;
             if (!lat || !lon) return;
 
-            const marker = L.marker([lat, lon], { icon: flightIcon });
+            const marker = L.marker([lat, lon], { icon: makePlaneIcon(heading) });
+
             marker.bindPopup(`
-                <div class="popup-title">✈️ ${callsign ? callsign.trim() : 'Unknown'}</div>
-                <div class="popup-row">🌍 Country: <span>${country || 'N/A'}</span></div>
-                <div class="popup-row">📡 ICAO: <span>${icao || 'N/A'}</span></div>
-                <div class="popup-row">⬆️ Altitude: <span>${alt ? Math.round(alt) + ' m' : 'N/A'}</span></div>
-                <div class="popup-row">💨 Speed: <span>${speed ? Math.round(speed) + ' m/s' : 'N/A'}</span></div>
+                <div class="popup-title">✈ ${callsign ? callsign.trim() : 'UNKNOWN'}</div>
+                <div class="popup-row"><span>ICAO</span><span>${icao || 'N/A'}</span></div>
+                <div class="popup-row"><span>COUNTRY</span><span>${country || 'N/A'}</span></div>
+                <div class="popup-row"><span>ALTITUDE</span><span>${alt ? Math.round(alt) + ' m' : 'N/A'}</span></div>
+                <div class="popup-row"><span>SPEED</span><span>${speed ? Math.round(speed) + ' m/s' : 'N/A'}</span></div>
+                <div class="popup-row"><span>HEADING</span><span>${heading ? Math.round(heading) + '°' : 'N/A'}</span></div>
             `);
+
             markers.push(marker);
         });
 
         currentLayer = L.layerGroup(markers).addTo(map);
-        setStatus(`✈️ Showing ${markers.length.toLocaleString()} live flights.`);
+        setBadge('badge-flights', markers.length.toLocaleString());
+        setStatus(`${markers.length.toLocaleString()} AIRCRAFT TRACKED`);
 
     } catch (e) {
-        setStatus('Failed to load flights. Try again.');
+        document.getElementById('status').classList.remove('loading');
+        setStatus('FEED UNAVAILABLE — RETRY', 'error');
     }
 }
 
-// ── Earthquakes ───────────────────────────────────────────────────────────
+// ── Earthquakes ────────────────────────────────────────────────────────────
 
 function quakeColor(mag) {
-    if (mag >= 6) return '#ff0000';
-    if (mag >= 5) return '#ff6600';
+    if (mag >= 6) return '#ff1a1a';
+    if (mag >= 5) return '#ff5500';
     if (mag >= 4) return '#ffaa00';
-    if (mag >= 3) return '#ffff00';
+    if (mag >= 3) return '#ffee00';
     return '#00ff88';
 }
 
 function quakeRadius(mag) {
-    return Math.max(4, mag * 4);
+    return Math.max(5, mag * 5);
 }
 
 async function loadEarthquakes() {
     clearMap();
-    setActiveButton('.btn-quakes');
-    setStatus('Loading earthquakes...');
+    setActiveButton('btn-quakes');
+    setStatus('ACQUIRING SEISMIC DATA...', 'warn');
+    document.getElementById('status').classList.add('loading');
 
     try {
         const res  = await fetch('/api/earthquakes');
         const data = await res.json();
+
+        document.getElementById('status').classList.remove('loading');
 
         const circles = [];
 
@@ -137,20 +179,21 @@ async function loadEarthquakes() {
 
             if (!coords[1] || !coords[0]) return;
 
+            const color = quakeColor(mag);
             const circle = L.circleMarker([coords[1], coords[0]], {
                 radius:      quakeRadius(mag),
-                fillColor:   quakeColor(mag),
-                color:       '#000',
+                fillColor:   color,
+                color:       color,
                 weight:      1,
-                opacity:     0.8,
-                fillOpacity: 0.7
+                opacity:     0.9,
+                fillOpacity: 0.5
             });
 
             circle.bindPopup(`
-                <div class="popup-title">🌋 Magnitude ${mag}</div>
-                <div class="popup-row">📍 Location: <span>${place}</span></div>
-                <div class="popup-row">🕐 Time: <span>${time}</span></div>
-                <div class="popup-row">🔻 Depth: <span>${coords[2]} km</span></div>
+                <div class="popup-title">⚡ MAG ${mag}</div>
+                <div class="popup-row"><span>LOCATION</span><span>${place}</span></div>
+                <div class="popup-row"><span>TIME</span><span>${time}</span></div>
+                <div class="popup-row"><span>DEPTH</span><span>${coords[2]} km</span></div>
             `);
 
             circles.push(circle);
@@ -160,32 +203,33 @@ async function loadEarthquakes() {
 
         document.getElementById('legend').style.display = 'block';
         document.getElementById('legend-content').innerHTML = `
-            <b>Magnitude Scale:</b><br>
-            <span class="legend-dot" style="background:#ff0000"></span> 6.0+<br>
-            <span class="legend-dot" style="background:#ff6600"></span> 5.0 - 5.9<br>
-            <span class="legend-dot" style="background:#ffaa00"></span> 4.0 - 4.9<br>
-            <span class="legend-dot" style="background:#ffff00"></span> 3.0 - 3.9<br>
-            <span class="legend-dot" style="background:#00ff88"></span> &lt; 3.0
+            <span class="legend-dot" style="background:#ff1a1a;color:#ff1a1a"></span> 6.0+<br>
+            <span class="legend-dot" style="background:#ff5500;color:#ff5500"></span> 5.0 – 5.9<br>
+            <span class="legend-dot" style="background:#ffaa00;color:#ffaa00"></span> 4.0 – 4.9<br>
+            <span class="legend-dot" style="background:#ffee00;color:#ffee00"></span> 3.0 – 3.9<br>
+            <span class="legend-dot" style="background:#00ff88;color:#00ff88"></span> &lt; 3.0
         `;
 
-        setStatus(`🌋 Showing ${circles.length.toLocaleString()} earthquakes (last 24h).`);
+        setBadge('badge-quakes', circles.length.toLocaleString());
+        setStatus(`${circles.length.toLocaleString()} SEISMIC EVENTS (24H)`);
 
     } catch (e) {
-        setStatus('Failed to load earthquakes. Try again.');
+        document.getElementById('status').classList.remove('loading');
+        setStatus('SEISMIC FEED UNAVAILABLE', 'error');
     }
 }
 
-// ── Weather ───────────────────────────────────────────────────────────────
+// ── Weather ────────────────────────────────────────────────────────────────
 
 function enableWeather() {
     clearMap();
-    setActiveButton('.btn-weather');
+    setActiveButton('btn-weather');
     weatherMode = true;
-    setStatus('🌤️ Click anywhere on the map to get weather.');
+    setStatus('SELECT TARGET COORDINATES');
 
     map.on('click', async (e) => {
         const { lat, lng } = e.latlng;
-        setStatus('Fetching weather...');
+        setStatus('FETCHING ATMOSPHERIC DATA...', 'warn');
 
         try {
             const res  = await fetch(`/api/weather?lat=${lat}&lon=${lng}`);
@@ -195,23 +239,23 @@ function enableWeather() {
             if (currentLayer) map.removeLayer(currentLayer);
 
             const marker = L.marker([lat, lng]).bindPopup(`
-                <div class="popup-title">🌤️ Weather</div>
-                <div class="popup-row">📍 Location: <span>${lat.toFixed(2)}, ${lng.toFixed(2)}</span></div>
-                <div class="popup-row">🌡️ Temperature: <span>${cw.temperature} °C</span></div>
-                <div class="popup-row">💨 Wind Speed: <span>${cw.windspeed} km/h</span></div>
-                <div class="popup-row">🧭 Wind Direction: <span>${cw.winddirection}°</span></div>
+                <div class="popup-title">◈ WEATHER</div>
+                <div class="popup-row"><span>COORDS</span><span>${lat.toFixed(3)}, ${lng.toFixed(3)}</span></div>
+                <div class="popup-row"><span>TEMP</span><span>${cw.temperature} °C</span></div>
+                <div class="popup-row"><span>WIND</span><span>${cw.windspeed} km/h</span></div>
+                <div class="popup-row"><span>DIRECTION</span><span>${cw.winddirection}°</span></div>
             `).addTo(map);
 
             currentLayer = marker;
             marker.openPopup();
-            setStatus(`🌤️ Weather loaded for ${lat.toFixed(2)}, ${lng.toFixed(2)}.`);
+            setStatus(`WEATHER: ${lat.toFixed(2)}N ${lng.toFixed(2)}E`);
 
         } catch (e) {
-            setStatus('Failed to fetch weather. Try again.');
+            setStatus('ATMOSPHERIC DATA UNAVAILABLE', 'error');
         }
     });
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────────────────────
 
 loadPodInfo();

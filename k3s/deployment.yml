@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: world-tracker
+  namespace: world-tracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: world-tracker
+  template:
+    metadata:
+      labels:
+        app: world-tracker
+    spec:
+      containers:
+        - name: world-tracker
+          image: mariuseu/world-tracker:k3s-latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ENVIRONMENT
+              value: "k3s-homelab"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: world-tracker
+  namespace: world-tracker
+spec:
+  type: ClusterIP
+  selector:
+    app: world-tracker
+  ports:
+    - port: 80
+      targetPort: 8000

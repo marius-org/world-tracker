@@ -62,4 +62,4 @@ async def get_weather(lat: float, lon: float):
                 "hourly": "temperature_2m,windspeed_10m"
             }
         )
-        return response.json()
+        return response.json() 

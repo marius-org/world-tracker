@@ -1,205 +1,130 @@
-# 🌍 World Live Tracker 
+# 🌍 World Live Tracker — k3s Branch
 
-A real-time world map dashboard built with FastAPI and Leaflet.js, fully automated from local development to AWS EKS deployment using a complete DevOps toolchain.
+> Local homelab deployment of World Live Tracker on a self-hosted k3s cluster.
+> For the AWS EKS version see the [`main`](https://github.com/marius-org/world-tracker/tree/main) branch.
 
----
-
-## 📋 Project Overview
-
-This project demonstrates a complete DevOps pipeline — from provisioning a fresh local VM to deploying a live application on AWS Elastic Kubernetes Service (EKS). Every step is automated using industry-standard tools.
+🗺️ **Live:** [world.slax.ro](https://world.slax.ro)
 
 ---
 
-## 🏗️ Architecture
+## What's Different From `main`
 
-    Local Infrastructure (Proxmox)
-    ├── ansible-ctrl  (192.168.1.58)  — Ansible control node
-    └── devops-project (192.168.1.59) — Development VM
-
-    CI/CD Pipeline (GitHub Actions)
-    ├── Job 1: Build Docker image → push to Docker Hub
-    ├── Job 2: Terraform → provision AWS VPC + EKS
-    ├── Job 3: kubectl → deploy to Kubernetes
-    └── Job 4: Ansible → smoke test live app
-
-    AWS Infrastructure (eu-west-1 — Ireland)
-    ├── VPC with public and private subnets across 3 AZs
-    ├── EKS Cluster (Kubernetes 1.32)
-    ├── Managed Node Group (t3.small)
-    └── Network Load Balancer (public endpoint)
+| | `main` (AWS) | `k3s` (this branch) |
+|---|---|---|
+| Infra | AWS EKS + Terraform | Self-hosted k3s homelab |
+| Pipeline | 4 jobs: build → terraform → deploy → ansible | 2 jobs: build → ArgoCD GitOps |
+| Ingress | AWS NLB | ingress-nginx + MetalLB + Cloudflare Tunnel |
+| Domain | AWS ELB hostname | world.slax.ro |
+| Flights API | Browser-side proxy (AWS IP blocked) | Server-side proxy (home IP works) |
+| UI | Original | Redesigned — radar/aviation aesthetic |
+| Performance | — | Flight cache 30s + capped at 3,000 aircraft |
 
 ---
 
-## 🛠️ Tech Stack
+## Architecture
 
-| Tool | Purpose |
+```
+Proxmox Homelab
+└── devops-project (192.168.1.59) — development VM, runs pipeline
+
+k3s HA Cluster (pve12)
+├── control-node  192.168.1.50  — control plane, GitHub Actions runner, ArgoCD
+├── k3s-master-01 192.168.1.51
+├── k3s-master-02 192.168.1.52
+├── k3s-master-03 192.168.1.53
+├── k3s-worker-01 192.168.1.54
+└── k3s-worker-02 192.168.1.55
+
+Traffic Flow
+Internet → Cloudflare Tunnel → ingress-nginx (MetalLB) → world-tracker-service (ClusterIP) → pod
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| Python / FastAPI | Web application backend |
-| Leaflet.js | Interactive world map frontend |
-| Docker | Application containerization |
-| Docker Hub | Container image registry |
-| Git / GitHub | Source control |
-| GitHub Actions | CI/CD pipeline orchestration |
-| Ansible | VM provisioning + smoke testing |
-| Terraform | AWS infrastructure as code |
-| Kubernetes (EKS) | Container orchestration on AWS |
-| AWS VPC | Network isolation |
-| AWS NLB | Public load balancing |
+| Backend | Python / FastAPI |
+| Frontend | Leaflet.js + Vanilla JS (radar aesthetic) |
+| Containerization | Docker |
+| Container registry | Docker Hub (`mariuseu/world-tracker`) |
+| CI/CD | GitHub Actions (self-hosted runner on `control-node`) |
+| GitOps | ArgoCD |
+| Orchestration | k3s HA cluster |
+| Ingress | ingress-nginx + MetalLB + Cloudflare Tunnel |
+| Domain | world.slax.ro |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
-    world-tracker/
-    ├── app/
-    │   ├── main.py                   # FastAPI routes and API proxies
-    │   ├── requirements.txt          # Python dependencies
-    │   ├── Dockerfile                # Multi-stage Docker build
-    │   └── static/
-    │       ├── index.html            # Frontend HTML
-    │       ├── style.css             # Dark theme styling
-    │       └── app.js                # Map logic and API calls
-    │
-    ├── ansible/
-    │   └── playbooks/
-    │       └── smoke-test.yml        # Post-deploy health verification
-    │
-    ├── terraform/
-    │   ├── main.tf                   # Provider and S3 backend config
-    │   ├── variables.tf              # Input variables
-    │   ├── vpc.tf                    # VPC, subnets, NAT gateway
-    │   ├── eks.tf                    # EKS cluster and node group
-    │   └── outputs.tf                # Output values
-    │
-    ├── k8s/
-    │   ├── namespace.yml             # Dedicated namespace
-    │   ├── configmap.yml             # Environment configuration
-    │   ├── deployment.yml            # Pod deployment spec
-    │   └── service.yml               # LoadBalancer service
-    │
-    └── .github/
-        └── workflows/
-            └── deploy.yml            # Full CI/CD pipeline
+```
+world-tracker/
+├── app/
+│   ├── main.py                # FastAPI backend (flights cache + 3k limit)
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── static/
+│       ├── index.html         # Redesigned radar UI
+│       ├── style.css
+│       └── app.js             # Cluster rendering + zoom-based icons
+├── k3s/
+│   ├── namespace.yml
+│   ├── deployment.yml         # Deployment + Service (ClusterIP)
+│   └── ingress.yml            # world.slax.ro ingress rule
+├── ansible/
+│   └── playbooks/
+│       └── smoke-test.yml
+└── .github/
+    └── workflows/
+        ├── deploy.yml          # main branch → AWS EKS
+        └── deploy-k3s.yml      # k3s branch → homelab
+```
 
 ---
 
-## 🚀 Pipeline Flow
+## CI/CD Pipeline
 
-Every `git push` to `main` triggers the full pipeline:
+Every push to `k3s` (excluding `k3s/**` and `*.md`) triggers:
 
-    git push → main
-        │
-        ├── Job 1: Build & Push
-        │     └── docker build → mariuseu/world-tracker:sha + latest
-        │
-        ├── Job 2: Terraform
-        │     ├── terraform init
-        │     ├── terraform plan
-        │     └── terraform apply → VPC + EKS on AWS
-        │
-        ├── Job 3: Deploy
-        │     ├── aws eks update-kubeconfig
-        │     ├── kubectl apply namespace
-        │     ├── kubectl apply configmap
-        │     ├── kubectl apply deployment
-        │     ├── kubectl apply service
-        │     └── kubectl rollout status
-        │
-        └── Job 4: Ansible Smoke Test
-              ├── Wait for app to be reachable (retries: 10, delay: 15s)
-              ├── Assert /health returns {"status": "healthy"}
-              ├── Assert /info returns required fields
-              └── Print deployment summary with pod hostname
+```
+git push → deploy-k3s.yml (runs on control-node)
+    │
+    ├── Job 1: Build & Push
+    │     └── docker build → mariuseu/world-tracker:k3s-<run> + k3s-latest
+    │
+    └── Job 2: (ArgoCD)
+          └── sed image tag in k3s/deployment.yml → commit → push
+                └── ArgoCD detects change → auto-sync → k3s cluster
+```
 
 ---
 
-## 🌐 Application Features
+## Application Features
 
-- **✈️ Live Flights** — Real-time aircraft positions worldwide (OpenSky Network)
+- **✈️ Live Flights** — Up to 3,000 aircraft, cached 30s, clustered rendering
 - **🌋 Earthquakes** — Last 24h seismic activity with magnitude scale (USGS)
 - **🌤️ Weather** — Click anywhere on the map for local weather (Open-Meteo)
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |---|---|---|
 | `/` | GET | Web dashboard |
-| `/health` | GET | Kubernetes liveness/readiness probe |
+| `/health` | GET | Liveness probe |
 | `/info` | GET | Pod hostname, version, environment |
-| `/api/flights` | GET | Live flight data proxy |
-| `/api/earthquakes` | GET | Earthquake data proxy |
-| `/api/weather?lat=&lon=` | GET | Weather data proxy |
+| `/api/flights` | GET | Live flights (cached 30s, max 3,000) |
+| `/api/earthquakes` | GET | Earthquake data (USGS) |
+| `/api/weather?lat=&lon=` | GET | Weather at coordinates (Open-Meteo) |
 
 ---
 
-## ⚙️ Local Bootstrap (Ansible)
+## GitHub Secrets Required
 
-The `devops-project` VM was provisioned from scratch using Ansible from `ansible-ctrl`:
-
-    # On ansible-ctrl (192.168.1.58)
-    ansible-playbook ansible/playbooks/provision-project.yml
-
-This installs on `devops-project`:
-- Docker Engine
-- Git (configured for marius-org)
-- Terraform
-- kubectl
-- AWS CLI v2
-
-Dynamic inventory is powered by the `community.proxmox` collection querying Proxmox at `192.168.1.12`.
-
----
-
-## 🏛️ Infrastructure Details
-
-### VPC
-- CIDR: `10.0.0.0/16`
-- 3 public subnets (Load Balancers)
-- 3 private subnets (Worker Nodes)
-- Single NAT Gateway for outbound traffic
-
-### EKS Cluster
-- Kubernetes version: 1.32
-- Node type: `t3.small`
-- Node count: 2 (min: 1, max: 3)
-- Add-ons: CoreDNS, kube-proxy, vpc-cni
-
-### Kubernetes Resources
-- Namespace: `world-tracker`
-- Deployment: 2 replicas with liveness + readiness probes
-- Service: Network Load Balancer (internet-facing, port 80)
-
-### Terraform State
-- Backend: S3 (`2048-devops-terraform-state`)
-- Key: `world-tracker/terraform.tfstate`
-- Region: `eu-west-1`
-
----
-
-## 🔐 Secrets Management
-
-All sensitive values are stored as **GitHub Organization secrets** under `marius-org`:
-
-| Secret | Purpose |
+| Secret | Description |
 |---|---|
-| `DOCKERHUB_USERNAME` | Docker Hub authentication |
-| `DOCKERHUB_TOKEN` | Docker Hub authentication |
-| `AWS_ACCESS_KEY_ID` | AWS provisioning |
-| `AWS_SECRET_ACCESS_KEY` | AWS provisioning |
-
----
-
-## 💣 Destroy Infrastructure
-
-To avoid AWS costs when not in use:
-
-    # Delete Kubernetes LoadBalancer first
-    kubectl delete svc world-tracker -n world-tracker
-
-    # Then destroy all AWS resources
-    cd terraform
-    terraform destroy -auto-approve
-
-Re-deploy anytime with a simple `git push`.
+| `DOCKERHUB_USERNAME` | Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub access token |

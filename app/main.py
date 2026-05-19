@@ -80,3 +80,4 @@ async def get_weather(lat: float, lon: float):
         )
         return response.json()
  
+ 

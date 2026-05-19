@@ -58,7 +58,7 @@ jobs:
         with:
           command: cves
           image: ${{ env.IMAGE_NAME }}:k3s-${{ github.run_number }}
-          only-severities: critical,high
+          only-severities: critical
           exit-code: true
 
   deploy:

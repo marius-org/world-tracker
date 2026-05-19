@@ -5,10 +5,17 @@ import httpx
 import socket
 import sys
 import os
+import time
 
 app = FastAPI(title="World Live Tracker", version="1.0.0")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ── Cache ────────────────────────────────────────────────────────────────────
+
+_flights_cache = {"data": None, "ts": 0}
+CACHE_TTL = 30        # seconds
+MAX_AIRCRAFT = 3000   # cap to keep browser smooth
 
 # ── Root ────────────────────────────────────────────────────────────────────
 
@@ -36,11 +43,20 @@ async def info():
 
 @app.get("/api/flights")
 async def get_flights():
+    now = time.time()
+    if _flights_cache["data"] and now - _flights_cache["ts"] < CACHE_TTL:
+        return _flights_cache["data"]
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         response = await client.get(
             "https://opensky-network.org/api/states/all"
         )
-        return response.json()
+        data = response.json()
+        if "states" in data and data["states"]:
+            data["states"] = data["states"][:MAX_AIRCRAFT]
+        _flights_cache["data"] = data
+        _flights_cache["ts"] = now
+        return data
 
 @app.get("/api/earthquakes")
 async def get_earthquakes():
@@ -62,4 +78,4 @@ async def get_weather(lat: float, lon: float):
                 "hourly": "temperature_2m,windspeed_10m"
             }
         )
-        return response.json() 
+        return response.json()

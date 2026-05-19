@@ -4,7 +4,8 @@ const map = L.map('map', {
     center: [20, 0],
     zoom: 2,
     minZoom: 2,
-    zoomControl: true
+    zoomControl: true,
+    preferCanvas: true
 });
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -16,6 +17,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 
 let currentLayer = null;
 let weatherMode  = false;
+let flightData   = [];
 
 // ── Coords display ─────────────────────────────────────────────────────────
 
@@ -45,8 +47,10 @@ function clearMap() {
         map.removeLayer(currentLayer);
         currentLayer = null;
     }
+    flightData = [];
     weatherMode = false;
     map.off('click');
+    map.off('zoomend');
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('legend').style.display = 'none';
     setBadge('badge-flights', '—');
@@ -60,22 +64,67 @@ function setActiveButton(id) {
     document.getElementById(id).classList.add('active');
 }
 
-// ── Plane SVG icon (rotates with heading) ─────────────────────────────────
+// ── Plane icon (only used when zoomed in) ──────────────────────────────────
 
 function makePlaneIcon(heading) {
     const deg = heading || 0;
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
-             style="transform:rotate(${deg}deg); transform-origin: center;"
-             fill="#00f5c4">
-            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-        </svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+         style="transform:rotate(${deg}deg);transform-origin:center;" fill="#00f5c4">
+        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+    </svg>`;
     return L.divIcon({
         html: `<div class="plane-icon">${svg}</div>`,
         className: '',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
     });
+}
+
+// ── Render flights based on zoom ───────────────────────────────────────────
+
+function renderFlights(data) {
+    if (currentLayer) {
+        map.removeLayer(currentLayer);
+        currentLayer = null;
+    }
+
+    const zoom = map.getZoom();
+    const markers = [];
+
+    data.forEach(state => {
+        const [icao, callsign, country,,,, lat, lon,,, alt,,,, speed, heading] = state;
+        if (!lat || !lon) return;
+
+        const popup = `
+            <div class="popup-title">✈ ${callsign ? callsign.trim() : 'UNKNOWN'}</div>
+            <div class="popup-row"><span>ICAO</span><span>${icao || 'N/A'}</span></div>
+            <div class="popup-row"><span>COUNTRY</span><span>${country || 'N/A'}</span></div>
+            <div class="popup-row"><span>ALTITUDE</span><span>${alt ? Math.round(alt) + ' m' : 'N/A'}</span></div>
+            <div class="popup-row"><span>SPEED</span><span>${speed ? Math.round(speed) + ' m/s' : 'N/A'}</span></div>
+            <div class="popup-row"><span>HEADING</span><span>${heading ? Math.round(heading) + '°' : 'N/A'}</span></div>
+        `;
+
+        let marker;
+
+        if (zoom >= 6) {
+            // Zoomed in: SVG plane icon with rotation
+            marker = L.marker([lat, lon], { icon: makePlaneIcon(heading) });
+        } else {
+            // Zoomed out: fast canvas circle
+            marker = L.circleMarker([lat, lon], {
+                radius: zoom >= 4 ? 4 : 3,
+                fillColor: '#00f5c4',
+                color: '#00f5c4',
+                weight: 0,
+                fillOpacity: 0.85
+            });
+        }
+
+        marker.bindPopup(popup);
+        markers.push(marker);
+    });
+
+    currentLayer = L.layerGroup(markers).addTo(map);
 }
 
 // ── Pod Info ───────────────────────────────────────────────────────────────
@@ -112,29 +161,16 @@ async function loadFlights() {
             return;
         }
 
-        const markers = [];
+        flightData = data.states;
+        renderFlights(flightData);
 
-        data.states.forEach(state => {
-            const [icao, callsign, country,,,, lat, lon,,, alt,,,, speed, heading] = state;
-            if (!lat || !lon) return;
-
-            const marker = L.marker([lat, lon], { icon: makePlaneIcon(heading) });
-
-            marker.bindPopup(`
-                <div class="popup-title">✈ ${callsign ? callsign.trim() : 'UNKNOWN'}</div>
-                <div class="popup-row"><span>ICAO</span><span>${icao || 'N/A'}</span></div>
-                <div class="popup-row"><span>COUNTRY</span><span>${country || 'N/A'}</span></div>
-                <div class="popup-row"><span>ALTITUDE</span><span>${alt ? Math.round(alt) + ' m' : 'N/A'}</span></div>
-                <div class="popup-row"><span>SPEED</span><span>${speed ? Math.round(speed) + ' m/s' : 'N/A'}</span></div>
-                <div class="popup-row"><span>HEADING</span><span>${heading ? Math.round(heading) + '°' : 'N/A'}</span></div>
-            `);
-
-            markers.push(marker);
+        // Re-render on zoom change to switch between circle/plane icon
+        map.on('zoomend', () => {
+            if (flightData.length > 0) renderFlights(flightData);
         });
 
-        currentLayer = L.layerGroup(markers).addTo(map);
-        setBadge('badge-flights', markers.length.toLocaleString());
-        setStatus(`${markers.length.toLocaleString()} AIRCRAFT TRACKED`);
+        setBadge('badge-flights', flightData.length.toLocaleString());
+        setStatus(`${flightData.length.toLocaleString()} AIRCRAFT TRACKED`);
 
     } catch (e) {
         document.getElementById('status').classList.remove('loading');
@@ -152,10 +188,6 @@ function quakeColor(mag) {
     return '#00ff88';
 }
 
-function quakeRadius(mag) {
-    return Math.max(5, mag * 5);
-}
-
 async function loadEarthquakes() {
     clearMap();
     setActiveButton('btn-quakes');
@@ -168,20 +200,15 @@ async function loadEarthquakes() {
 
         document.getElementById('status').classList.remove('loading');
 
-        const circles = [];
-
-        data.features.forEach(feature => {
+        const circles = data.features.map(feature => {
             const props  = feature.properties;
             const coords = feature.geometry.coordinates;
             const mag    = props.mag;
-            const place  = props.place;
-            const time   = new Date(props.time).toUTCString();
-
-            if (!coords[1] || !coords[0]) return;
+            if (!coords[1] || !coords[0]) return null;
 
             const color = quakeColor(mag);
             const circle = L.circleMarker([coords[1], coords[0]], {
-                radius:      quakeRadius(mag),
+                radius:      Math.max(5, mag * 5),
                 fillColor:   color,
                 color:       color,
                 weight:      1,
@@ -191,13 +218,12 @@ async function loadEarthquakes() {
 
             circle.bindPopup(`
                 <div class="popup-title">⚡ MAG ${mag}</div>
-                <div class="popup-row"><span>LOCATION</span><span>${place}</span></div>
-                <div class="popup-row"><span>TIME</span><span>${time}</span></div>
+                <div class="popup-row"><span>LOCATION</span><span>${props.place}</span></div>
+                <div class="popup-row"><span>TIME</span><span>${new Date(props.time).toUTCString()}</span></div>
                 <div class="popup-row"><span>DEPTH</span><span>${coords[2]} km</span></div>
             `);
-
-            circles.push(circle);
-        });
+            return circle;
+        }).filter(Boolean);
 
         currentLayer = L.layerGroup(circles).addTo(map);
 

@@ -46,7 +46,7 @@ jobs:
   deploy:
     name: Deploy to k3s via ArgoCD
     runs-on: control-node
-    needs: scan
+  
 
     steps:
       - name: Checkout
